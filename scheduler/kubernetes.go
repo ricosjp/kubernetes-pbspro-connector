@@ -205,27 +205,35 @@ func fit(pod *Pod) (string,error) {
 			milliCores := strings.TrimSuffix(c.Resources.Requests["cpu"], "m")
 			cores, err := strconv.Atoi(milliCores)
 			if err != nil {
-                        	return "Error",err
+                        	//return "Error",err
                         }
 			spaceRequired += cores				
 		}
-		
 		ncpus := strconv.Itoa(spaceRequired)
+		if ncpus == "0"{
+			ncpus = ""
+		}else{
+			ncpus = ":ncpus=" + ncpus
+		}
 
 		for _, c := range pod.Spec.Containers {
 			if strings.HasSuffix(c.Resources.Requests["memory"], "Mi") {
 				milliCores1 := strings.TrimSuffix(c.Resources.Requests["memory"], "Mi")
 				cores1, err1 := strconv.Atoi(milliCores1)
 				if err1 != nil {
-					return "Error",err1
+					//return "Error",err1
 				}
 				memoryRequired += cores1
 			}
 		}	
 		mem := strconv.Itoa(memoryRequired)
-		mem = mem + "MB"
-
-		argstr := []string{"-l","select=1:ncpus=" + ncpus + ":mem="+mem,"-N",pod.Metadata.Name,"-v","PODNAME="+pod.Metadata.Name,"kubernetes_job.sh"}
+		if mem == "0"{
+			mem = ""
+		}else{
+			mem = ":mem=" + mem + "MB"
+		}
+		argstr := []string{"-l","select=1" + ncpus + mem  ,"-N",pod.Metadata.Name,"-v","PODNAME="+pod.Metadata.Name,"kubernetes_job.sh"}
+		log.Println(argstr)
 		out, err := exec.Command("qsub", argstr...).Output()
 	        if err != nil {
 	            log.Fatal(err)
