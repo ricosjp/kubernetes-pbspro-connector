@@ -119,6 +119,8 @@ type ListMetadata struct {
 
 type Metadata struct {
 	Name            string            `json:"name"`
+	Namespace       string            `json:"namespace"`
+	SelfLink        string            `json:"selfLink"`
 	GenerateName    string            `json:"generateName"`
 	ResourceVersion string            `json:"resourceVersion"`
 	Labels          map[string]string `json:"labels"`

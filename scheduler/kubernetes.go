@@ -70,8 +70,8 @@ type PBSPodMetadata struct {
 
 var (
 	apiHost           = "127.0.0.1:8001"
-	bindingEndpoint  = "/api/v1/namespaces/default/pods/%s/binding/"
-	eventEndpoint    = "/api/v1/namespaces/default/events"
+	bindingEndpoint  = "/api/v1/namespaces/%s/pods/%s/binding/"
+	eventEndpoint    = "/api/v1/namespaces/%s/events"
 	nodeEndpoint     = "/api/v1/nodes"
 	podEndpoint      = "/api/v1/pods"
 	podNamespace	  = "/api/v1/namespaces/default/pods/"
@@ -93,7 +93,7 @@ func postsEvent(event Event) error {
 		Method:        http.MethodPost,
 		URL: &url.URL{
 			Host:   apiHost,
-			Path:   eventEndpoint,
+			Path:   fmt.Sprintf(eventEndpoint, event.InvolvedObject.Namespace),
 			Scheme: "http",
 		},
 	}
@@ -255,7 +255,7 @@ func fit(pod *Pod) (string,error) {
 	nodename := findnode(jobid)
 
 	if nodename != "" {
-		log.Println("Job Scheduled, associating node " + nodename + " to " + pod.Metadata.Name)
+		log.Println("Job Scheduled, associating node " + nodename + " to " + pod.Metadata.Namespace + pod.Metadata.Name)
 		return nodename, nil
 	} 
 
@@ -288,7 +288,8 @@ func fit(pod *Pod) (string,error) {
 		InvolvedObject: ObjectReference{
 			Kind:      "Pod",
 			Name:      pod.Metadata.Name,
-			Namespace: "default",
+			//Namespace: "default",
+			Namespace: pod.Metadata.Namespace,
 			Uid:       pod.Metadata.Uid,
 		},
 	}
@@ -304,8 +305,9 @@ func fit(pod *Pod) (string,error) {
 func findnode(jobid string) string {
 
 	returnstring := ""
-
+	log.Println("findnode function")
         out1, err := exec.Command("bash", "-c" ,"qstat -f " + jobid).Output()        
+	log.Println(out1)
         if err != nil {
             log.Fatal(err)
             os.Exit(1)
@@ -377,7 +379,8 @@ func annotation(pod *Pod, jobid string) {
 		os.Exit(1)
 	}
 	
-	url := "http://" + apiHost + podNamespace + pod.Metadata.Name
+	url := "http://" + apiHost + pod.Metadata.SelfLink
+
 	req, error := http.NewRequest("PATCH", url, body)
 	if error != nil {
 		log.Println(error)
@@ -428,7 +431,7 @@ func bind(pod *Pod, node string) error {
 		Method:        http.MethodPost,
 		URL: &url.URL{
 			Host:   apiHost,
-			Path:   fmt.Sprintf(bindingEndpoint, pod.Metadata.Name),
+			Path:   fmt.Sprintf(bindingEndpoint, pod.Metadata.Namespace, pod.Metadata.Name),
 			Scheme: "http",
 		},
 	}
@@ -443,7 +446,7 @@ func bind(pod *Pod, node string) error {
 	}
 
 	// Shoot a Kubernetes event that the Pod was scheduled successfully.
-	msg := fmt.Sprintf("Successfully assigned %s to %s", pod.Metadata.Name, node)
+	msg := fmt.Sprintf("Successfully assigned %s.%s to %s", pod.Metadata.Namespace, pod.Metadata.Name, node)
 	timestamp := time.Now().UTC().Format(time.RFC3339)
 	event := Event{
 		Count:          1,
@@ -457,7 +460,7 @@ func bind(pod *Pod, node string) error {
 		InvolvedObject: ObjectReference{
 			Kind:      "Pod",
 			Name:      pod.Metadata.Name,
-			Namespace: "default",
+			Namespace: pod.Metadata.Namespace,
 			Uid:       pod.Metadata.Uid,
 		},
 	}
